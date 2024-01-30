@@ -4360,7 +4360,6 @@ func uncover(jsonData []byte, block []byte) []byte {
 
 func main() {
 	var e string
-	var d string
 	var b string
 	var k string
 	var seed string
@@ -4369,9 +4368,8 @@ func main() {
 	var outFile string
 
 	flag.StringVar(&e, "e", "", "encode file")
-	flag.StringVar(&d, "d", "", "decode file")
-	flag.StringVar(&b, "b", "", "decode file")
-	flag.StringVar(&k, "k", "", "decode file")
+	flag.StringVar(&b, "b", "", "the block file")
+	flag.StringVar(&k, "k", "", "the key file")
 
 	flag.Parse()
 
