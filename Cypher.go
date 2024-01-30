@@ -1,9 +1,12 @@
 package main
 
 import (
+	"encoding/json"
+	"flag"
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -4319,26 +4322,105 @@ func writeBytesToFile(filename string, data []byte) error {
 	return nil
 }
 
-func main() {
+func hide(data []byte, block []byte) []byte {
+	var KeyMap []int64
+	var i int64
+	for _, with := range data {
+		for _, entropy := range block {
+			if with == entropy {
+				KeyMap = append(KeyMap, i)
+				break
+			}
+			i++
+		}
+		i = 0
+	}
 
-	var seed string
-	var outfile string
-
-	seed = "10M_random_data"
-	outfile = seed + ".block"
-
-	data, err := readBytesFromFile(seed)
+	jsonData, err := json.Marshal(&KeyMap)
 	if err != nil {
 		panic(err)
 	}
 
-	bits := FirstPass(data)
-	folded_data := SecondPass(bits)
-	serialized := ThirdPass(folded_data)
-	BuiltBlocks := FourthPass(serialized)
+	return jsonData
+}
 
-	writeBytesToFile(outfile, BuiltBlocks)
+func uncover(jsonData []byte, block []byte) []byte {
+	var KeyMap []int64
+	var Recovered []byte
+	err := json.Unmarshal(jsonData, &KeyMap)
+	if err != nil {
+		panic(err)
+	}
 
-	// Rijndael algorythims follows.
+	for _, Key := range KeyMap {
+		Recovered = append(Recovered, block[Key])
+	}
+	return Recovered
+}
 
+func main() {
+	var e string
+	var d string
+	var b string
+	var k string
+	var seed string
+	var block string
+	var key string
+	var outFile string
+
+	flag.StringVar(&e, "e", "", "encode file")
+	flag.StringVar(&d, "d", "", "decode file")
+	flag.StringVar(&b, "b", "", "decode file")
+	flag.StringVar(&k, "k", "", "decode file")
+
+	flag.Parse()
+
+	if len(os.Args) < 3 {
+		fmt.Println("Usage: Cypher -e <original file> [OR] -b <.block file> -k <.key file> [Respectively Encode and Decode]")
+		os.Exit(1)
+	}
+	if e != "" {
+		seed = e
+		block = seed + ".block"
+		key = seed + ".key"
+		outFile = seed + ".recovered"
+
+		data, err := readBytesFromFile(seed)
+		if err != nil {
+			panic(err)
+		}
+
+		bits := FirstPass(data)
+		folded_data := SecondPass(bits)
+		serialized := ThirdPass(folded_data)
+		BuiltEntropy := FourthPass(serialized)
+
+		writeBytesToFile(block, BuiltEntropy)
+
+		//------------------ENCODE----------------\\
+		jsonData := hide(data, BuiltEntropy)
+
+		writeBytesToFile(key, jsonData)
+	}
+
+	if b != "" && k != "" {
+		block = b
+		key = k
+		ext := strings.Split(b, ".")[1]
+		outFile = strings.Split(b, ".")[0] + "." + ext
+
+		BuiltEntropy, err := readBytesFromFile(block)
+		if err != nil {
+			panic(err)
+		}
+
+		jsonData, err := readBytesFromFile(key)
+		if err != nil {
+			panic(err)
+		}
+
+		RecoveredData := uncover(jsonData, BuiltEntropy)
+
+		writeBytesToFile(outFile, RecoveredData)
+	}
 }
